@@ -76,6 +76,67 @@ body::before {
   border-bottom: 1px solid rgba(31, 34, 30, 0.08);
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff1d6 0%, #f6efe2 35%, #e0f2ea 100%);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 20px -18px rgba(15, 20, 17, 0.7);
+}
+
+.brand-logo svg {
+  width: 34px;
+  height: 34px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-title {
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.brand-sub {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.brand-tag {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-cool);
+  background: rgba(31, 138, 112, 0.12);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
 .mode-row {
   display: flex;
   align-items: center;
@@ -241,6 +302,25 @@ button:focus-visible {
 
   .top-panel {
     padding: 18px 18px 14px;
+  }
+
+  .brand-row {
+    margin-bottom: 12px;
+  }
+
+  .brand-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .brand-title {
+    font-size: 1rem;
+    letter-spacing: 0.14em;
+  }
+
+  .brand-tag {
+    padding: 5px 10px;
   }
 
   .keypad {

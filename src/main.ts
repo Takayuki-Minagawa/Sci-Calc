@@ -46,6 +46,37 @@ if (!app) {
 app.innerHTML = `
   <div class="calculator">
     <header class="top-panel">
+      <div class="brand-row">
+        <div class="brand" role="img" aria-label="Sci-Calc logo">
+          <span class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="presentation">
+              <defs>
+                <linearGradient id="logoOrb" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#ffb36b" />
+                  <stop offset="55%" stop-color="#ff7a59" />
+                  <stop offset="100%" stop-color="#1f8a70" />
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="32" r="22" fill="url(#logoOrb)" opacity="0.18" />
+              <circle cx="32" cy="32" r="18" fill="none" stroke="url(#logoOrb)" stroke-width="3" />
+              <path
+                d="M20 38c6.2 4.6 15.8 4.6 22 0M24 26l8 14 8-14"
+                fill="none"
+                stroke="#1f221e"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="32" cy="26" r="3.5" fill="#1f221e" />
+            </svg>
+          </span>
+          <div class="brand-text">
+            <span class="brand-title">Sci-Calc</span>
+            <span class="brand-sub">Precision Instruments</span>
+          </div>
+        </div>
+        <span class="brand-tag">Field Ready</span>
+      </div>
       <div class="mode-row">
         <button class="mode-toggle" type="button" data-action="toggle-mode" aria-label="角度モード切り替え">
           <span class="mode-pill">${state.mode}</span>
