@@ -60,6 +60,22 @@
 
 ---
 
+## 開発手順（ローカル）
+
+- 依存関係のインストール: `npm install`
+- 開発サーバ: `npm run dev`
+- テスト: `npm test`
+- ビルド: `npm run build`
+
+---
+
+## GitHub Pages
+
+- `vite.config.ts` の `base` はリポジトリ名に合わせる（例: `/Sci-Calc/`）
+- `main` ブランチへの push で `.github/workflows/deploy.yml` が実行される
+
+---
+
 ## UI 要件
 
 ### 画面構成（最小）
@@ -217,3 +233,12 @@
 
 ## ディレクトリ構成（提案）
 
+---
+
+## 実装状況（2026-02-03）
+
+- [x] Vite + TypeScript の初期構成
+- [x] Expression Engine（Tokenizer → Shunting-yard → RPN）とユニットテスト
+- [x] UI/状態管理/キーボード対応
+- [x] GitHub Actions による Pages デプロイ設定
+- [ ] 任意機能（履歴/メモリ/PWA など）
