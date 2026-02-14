@@ -54,6 +54,8 @@ describe('evaluate', () => {
   it('エラー', () => {
     expect(evaluate('1/0', { mode: 'DEG' }).ok).toBe(false)
     expect(evaluate('sqrt(-1)', { mode: 'DEG' }).ok).toBe(false)
+    expect(evaluate('asin(2)', { mode: 'DEG' }).ok).toBe(false)
+    expect(evaluate('acos(-2)', { mode: 'DEG' }).ok).toBe(false)
     expect(evaluate('((1+2)', { mode: 'DEG' }).ok).toBe(false)
   })
 })

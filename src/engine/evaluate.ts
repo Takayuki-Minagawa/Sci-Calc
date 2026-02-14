@@ -387,7 +387,14 @@ function applyFunction(stack: number[], token: { name: string; argCount: number 
   const mode = context.mode
   const toRadians = (value: number) => (mode === 'DEG' ? (value * Math.PI) / 180 : value)
   const fromRadians = (value: number) => (mode === 'DEG' ? (value * 180) / Math.PI : value)
-  const clamp = (value: number) => Math.min(1, Math.max(-1, value))
+  const clampUnitRange = (value: number) => Math.min(1, Math.max(-1, value))
+  const ensureInverseTrigDomain = (value: number) => {
+    const epsilon = 1e-12
+    if (value < -1 - epsilon || value > 1 + epsilon) {
+      throw new Error(`${name}の引数は-1から1の範囲です`)
+    }
+    return clampUnitRange(value)
+  }
 
   switch (name) {
     case 'sin':
@@ -404,11 +411,11 @@ function applyFunction(stack: number[], token: { name: string; argCount: number 
       return
     case 'asin':
       ensureArity(name, argCount, 1)
-      stack.push(fromRadians(Math.asin(clamp(args[0]))))
+      stack.push(fromRadians(Math.asin(ensureInverseTrigDomain(args[0]))))
       return
     case 'acos':
       ensureArity(name, argCount, 1)
-      stack.push(fromRadians(Math.acos(clamp(args[0]))))
+      stack.push(fromRadians(Math.acos(ensureInverseTrigDomain(args[0]))))
       return
     case 'atan':
       ensureArity(name, argCount, 1)
