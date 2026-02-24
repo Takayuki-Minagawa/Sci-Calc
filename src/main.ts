@@ -1,6 +1,8 @@
 import './style.css'
 import { evaluate, type Mode } from './engine/evaluate'
 
+type LayoutMode = 'basic' | 'scientific'
+
 type InputType =
   | 'digit'
   | 'operator'
@@ -15,7 +17,7 @@ type KeyDef = {
   label: string
   aria: string
   input?: string
-  action?: 'clear' | 'backspace' | 'evaluate' | 'toggle-sign' | 'toggle-mode'
+  action?: 'clear' | 'backspace' | 'evaluate' | 'toggle-sign' | 'toggle-angle' | 'toggle-layout' | 'smart-paren'
   type?: InputType
   className?: string
 }
@@ -24,6 +26,7 @@ type State = {
   expression: string
   result: string
   mode: Mode
+  layout: LayoutMode
   ans: number
   error: string
   justEvaluated: boolean
@@ -33,6 +36,7 @@ const state: State = {
   expression: '',
   result: '0',
   mode: 'DEG',
+  layout: 'basic',
   ans: 0,
   error: '',
   justEvaluated: false
@@ -44,51 +48,31 @@ if (!app) {
 }
 
 app.innerHTML = `
-  <div class="calculator">
+  <div class="calculator" id="calculator" data-layout="${state.layout}">
     <header class="top-panel">
-      <div class="brand-row">
-        <div class="brand" role="img" aria-label="Sci-Calc logo">
-          <span class="brand-logo" aria-hidden="true">
-            <svg viewBox="0 0 64 64" role="presentation">
-              <defs>
-                <linearGradient id="logoOrb" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#ffb36b" />
-                  <stop offset="55%" stop-color="#ff7a59" />
-                  <stop offset="100%" stop-color="#1f8a70" />
-                </linearGradient>
-              </defs>
-              <circle cx="32" cy="32" r="22" fill="url(#logoOrb)" opacity="0.18" />
-              <circle cx="32" cy="32" r="18" fill="none" stroke="url(#logoOrb)" stroke-width="3" />
-              <path
-                d="M20 38c6.2 4.6 15.8 4.6 22 0M24 26l8 14 8-14"
-                fill="none"
-                stroke="#1f221e"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <circle cx="32" cy="26" r="3.5" fill="#1f221e" />
-            </svg>
-          </span>
-          <div class="brand-text">
-            <span class="brand-title">Sci-Calc</span>
-            <span class="brand-sub">Precision Instruments</span>
-          </div>
-        </div>
-        <span class="brand-tag">Field Ready</span>
-      </div>
-      <div class="mode-row">
-        <button class="mode-toggle" type="button" data-action="toggle-mode" aria-label="角度モード切り替え">
-          <span class="mode-pill">${state.mode}</span>
-          <span class="mode-label">Angle</span>
+      <div class="status-row">
+        <button class="toggle mode-toggle" type="button" data-action="toggle-angle" aria-label="角度モード切り替え">
+          <span class="toggle-label">ANGLE</span>
+          <span class="toggle-pill mode-pill">${state.mode}</span>
         </button>
-        <div class="mode-hint" id="modeHint">入力: ${state.mode}</div>
+        <button
+          class="toggle layout-toggle"
+          type="button"
+          data-action="toggle-layout"
+          aria-label="関数モード切り替え"
+          aria-pressed="false"
+        >
+          <span class="toggle-label">FUNCTION</span>
+          <span class="toggle-pill layout-pill">OFF</span>
+        </button>
       </div>
+
       <div class="display" aria-live="polite">
         <div class="expression" id="expression"></div>
         <div class="result" id="result">0</div>
         <div class="error" id="error" role="status"></div>
       </div>
+      <div class="mode-hint" id="modeHint">通常モード | 角度: ${state.mode}</div>
     </header>
 
     <section class="keypad">
@@ -98,58 +82,60 @@ app.innerHTML = `
   </div>
 `
 
+const calculatorEl = app.querySelector<HTMLDivElement>('#calculator')!
 const expressionEl = app.querySelector<HTMLDivElement>('#expression')!
 const resultEl = app.querySelector<HTMLDivElement>('#result')!
 const errorEl = app.querySelector<HTMLDivElement>('#error')!
 const modeHintEl = app.querySelector<HTMLDivElement>('#modeHint')!
-const modeToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-mode"]')!
+const modeToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-angle"]')!
 const modePillEl = modeToggleBtn.querySelector<HTMLSpanElement>('.mode-pill')!
+const layoutToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-layout"]')!
+const layoutPillEl = layoutToggleBtn.querySelector<HTMLSpanElement>('.layout-pill')!
 
 const functionGrid = app.querySelector<HTMLDivElement>('#functionGrid')!
 const mainGrid = app.querySelector<HTMLDivElement>('#mainGrid')!
 
 const functionKeys: KeyDef[] = [
-  { label: 'sin', aria: 'sin', input: 'sin(', type: 'function' },
-  { label: 'cos', aria: 'cos', input: 'cos(', type: 'function' },
-  { label: 'tan', aria: 'tan', input: 'tan(', type: 'function' },
-  { label: 'asin', aria: 'asin', input: 'asin(', type: 'function' },
-  { label: 'acos', aria: 'acos', input: 'acos(', type: 'function' },
-  { label: 'atan', aria: 'atan', input: 'atan(', type: 'function' },
-  { label: 'log', aria: 'log', input: 'log(', type: 'function' },
-  { label: 'ln', aria: 'ln', input: 'ln(', type: 'function' },
-  { label: 'sqrt', aria: 'sqrt', input: 'sqrt(', type: 'function' },
-  { label: 'abs', aria: 'abs', input: 'abs(', type: 'function' },
-  { label: 'exp', aria: 'exp', input: 'exp(', type: 'function' },
-  { label: 'min', aria: 'min', input: 'min(', type: 'function' },
-  { label: 'max', aria: 'max', input: 'max(', type: 'function' },
-  { label: 'π', aria: 'pi', input: 'pi', type: 'constant' },
-  { label: 'e', aria: 'e', input: 'e', type: 'constant' }
+  { label: 'sin', aria: 'sin', input: 'sin(', type: 'function', className: 'key function-key' },
+  { label: 'cos', aria: 'cos', input: 'cos(', type: 'function', className: 'key function-key' },
+  { label: 'tan', aria: 'tan', input: 'tan(', type: 'function', className: 'key function-key' },
+  { label: 'ln', aria: 'ln', input: 'ln(', type: 'function', className: 'key function-key' },
+  { label: 'log', aria: 'log', input: 'log(', type: 'function', className: 'key function-key' },
+  { label: 'sqrt', aria: 'square root', input: 'sqrt(', type: 'function', className: 'key function-key' },
+  { label: 'exp', aria: 'exp', input: 'exp(', type: 'function', className: 'key function-key' },
+  { label: 'abs', aria: 'absolute', input: 'abs(', type: 'function', className: 'key function-key' },
+  { label: 'xʸ', aria: 'power', input: '^', type: 'operator', className: 'key function-key operator-lite' },
+  { label: 'asin', aria: 'asin', input: 'asin(', type: 'function', className: 'key function-key' },
+  { label: 'acos', aria: 'acos', input: 'acos(', type: 'function', className: 'key function-key' },
+  { label: 'atan', aria: 'atan', input: 'atan(', type: 'function', className: 'key function-key' },
+  { label: 'min', aria: 'min', input: 'min(', type: 'function', className: 'key function-key' },
+  { label: 'max', aria: 'max', input: 'max(', type: 'function', className: 'key function-key' },
+  { label: 'π', aria: 'pi', input: 'pi', type: 'constant', className: 'key function-key' },
+  { label: 'e', aria: 'e', input: 'e', type: 'constant', className: 'key function-key' },
+  { label: 'ANS', aria: 'ans', input: 'ans', type: 'ans', className: 'key function-key' },
+  { label: ',', aria: 'comma', input: ',', type: 'comma', className: 'key function-key' }
 ]
 
 const mainKeys: KeyDef[] = [
-  { label: 'AC', aria: 'all clear', action: 'clear', className: 'key action' },
-  { label: '⌫', aria: 'backspace', action: 'backspace', className: 'key action' },
-  { label: '(', aria: 'left parenthesis', input: '(', type: 'paren' },
-  { label: ')', aria: 'right parenthesis', input: ')', type: 'paren' },
-  { label: '7', aria: '7', input: '7', type: 'digit' },
-  { label: '8', aria: '8', input: '8', type: 'digit' },
-  { label: '9', aria: '9', input: '9', type: 'digit' },
+  { label: 'AC', aria: 'all clear', action: 'clear', className: 'key utility' },
+  { label: '⌫', aria: 'backspace', action: 'backspace', className: 'key utility' },
+  { label: '()', aria: 'smart parenthesis', action: 'smart-paren', className: 'key utility' },
   { label: '÷', aria: 'divide', input: '/', type: 'operator', className: 'key operator' },
-  { label: '4', aria: '4', input: '4', type: 'digit' },
-  { label: '5', aria: '5', input: '5', type: 'digit' },
-  { label: '6', aria: '6', input: '6', type: 'digit' },
+  { label: '7', aria: '7', input: '7', type: 'digit', className: 'key digit' },
+  { label: '8', aria: '8', input: '8', type: 'digit', className: 'key digit' },
+  { label: '9', aria: '9', input: '9', type: 'digit', className: 'key digit' },
   { label: '×', aria: 'multiply', input: '*', type: 'operator', className: 'key operator' },
-  { label: '1', aria: '1', input: '1', type: 'digit' },
-  { label: '2', aria: '2', input: '2', type: 'digit' },
-  { label: '3', aria: '3', input: '3', type: 'digit' },
+  { label: '4', aria: '4', input: '4', type: 'digit', className: 'key digit' },
+  { label: '5', aria: '5', input: '5', type: 'digit', className: 'key digit' },
+  { label: '6', aria: '6', input: '6', type: 'digit', className: 'key digit' },
   { label: '-', aria: 'minus', input: '-', type: 'operator', className: 'key operator' },
-  { label: '0', aria: '0', input: '0', type: 'digit' },
-  { label: '.', aria: 'decimal point', input: '.', type: 'dot' },
-  { label: '+/-', aria: 'toggle sign', action: 'toggle-sign', className: 'key action' },
+  { label: '1', aria: '1', input: '1', type: 'digit', className: 'key digit' },
+  { label: '2', aria: '2', input: '2', type: 'digit', className: 'key digit' },
+  { label: '3', aria: '3', input: '3', type: 'digit', className: 'key digit' },
   { label: '+', aria: 'plus', input: '+', type: 'operator', className: 'key operator' },
-  { label: 'ANS', aria: 'ans', input: 'ans', type: 'ans', className: 'key accent' },
-  { label: '^', aria: 'power', input: '^', type: 'operator', className: 'key operator' },
-  { label: ',', aria: 'comma', input: ',', type: 'comma' },
+  { label: '+/-', aria: 'toggle sign', action: 'toggle-sign', className: 'key utility' },
+  { label: '0', aria: '0', input: '0', type: 'digit', className: 'key digit' },
+  { label: '.', aria: 'decimal point', input: '.', type: 'dot', className: 'key digit' },
   { label: '=', aria: 'equals', action: 'evaluate', className: 'key equals' }
 ]
 
@@ -161,6 +147,7 @@ function buildKeys(container: HTMLElement, keys: KeyDef[]) {
     button.className = key.className ?? 'key'
     button.textContent = key.label
     button.setAttribute('aria-label', key.aria)
+
     if (key.input) {
       button.dataset.input = key.input
       button.dataset.type = key.type ?? 'digit'
@@ -168,6 +155,7 @@ function buildKeys(container: HTMLElement, keys: KeyDef[]) {
     if (key.action) {
       button.dataset.action = key.action
     }
+
     container.appendChild(button)
   }
 }
@@ -205,6 +193,7 @@ function trimNumberString(value: string): string {
 
 function updateDisplay() {
   expressionEl.textContent = formatExpression(state.expression)
+
   if (state.error) {
     resultEl.textContent = 'Error'
     errorEl.textContent = state.error
@@ -212,8 +201,18 @@ function updateDisplay() {
     resultEl.textContent = state.result
     errorEl.textContent = ''
   }
+
   modePillEl.textContent = state.mode
-  modeHintEl.textContent = `入力: ${state.mode}`
+
+  const scientificEnabled = state.layout === 'scientific'
+  layoutPillEl.textContent = scientificEnabled ? 'ON' : 'OFF'
+  layoutToggleBtn.classList.toggle('is-active', scientificEnabled)
+  layoutToggleBtn.setAttribute('aria-pressed', scientificEnabled ? 'true' : 'false')
+  calculatorEl.dataset.layout = state.layout
+
+  modeHintEl.textContent = scientificEnabled
+    ? `関数モード | 角度: ${state.mode}`
+    : `通常モード | 角度: ${state.mode}`
 }
 
 function clearAll() {
@@ -235,8 +234,13 @@ function backspace() {
   updateDisplay()
 }
 
-function toggleMode() {
+function toggleAngleMode() {
   state.mode = state.mode === 'DEG' ? 'RAD' : 'DEG'
+  updateDisplay()
+}
+
+function toggleLayoutMode() {
+  state.layout = state.layout === 'basic' ? 'scientific' : 'basic'
   updateDisplay()
 }
 
@@ -246,6 +250,7 @@ function toggleSign() {
     state.expression = state.result
     state.justEvaluated = false
   }
+
   const expr = state.expression
   if (!expr) {
     state.expression = '-'
@@ -269,6 +274,18 @@ function toggleSign() {
   updateDisplay()
 }
 
+function endsWithValue(expr: string): boolean {
+  const trimmed = expr.trimEnd()
+  if (!trimmed) return false
+  return /[\d.)πa-z]$/i.test(trimmed)
+}
+
+function shouldAddImplicitMultiply(input: string, type: InputType): boolean {
+  if (!endsWithValue(state.expression)) return false
+  if (type === 'function' || type === 'constant' || type === 'ans') return true
+  return type === 'paren' && input === '('
+}
+
 function handleInput(input: string, type: InputType) {
   if (state.error) {
     state.error = ''
@@ -285,13 +302,54 @@ function handleInput(input: string, type: InputType) {
     return
   }
 
-  state.expression += input
+  const token = shouldAddImplicitMultiply(input, type) ? `*${input}` : input
+  state.expression += token
+  updateDisplay()
+}
+
+function countOpenParentheses(expr: string): number {
+  let balance = 0
+  for (const ch of expr) {
+    if (ch === '(') {
+      balance += 1
+      continue
+    }
+    if (ch === ')' && balance > 0) {
+      balance -= 1
+    }
+  }
+  return balance
+}
+
+function insertSmartParenthesis() {
+  if (state.error) {
+    state.error = ''
+  }
+  if (state.justEvaluated) {
+    state.expression = ''
+    state.justEvaluated = false
+  }
+
+  const trimmed = state.expression.trimEnd()
+  const lastChar = trimmed.slice(-1)
+  const balance = countOpenParentheses(trimmed)
+  const canClose = balance > 0 && /[\d.)πa-z]$/i.test(lastChar)
+
+  if (canClose) {
+    state.expression += ')'
+    updateDisplay()
+    return
+  }
+
+  const needsMultiply = /[\d.)πa-z]$/i.test(lastChar)
+  state.expression += needsMultiply ? '*(' : '('
   updateDisplay()
 }
 
 function evaluateExpression() {
   if (!state.expression.trim()) return
   const result = evaluate(state.expression, { mode: state.mode, ans: state.ans })
+
   if (result.ok) {
     const formatted = formatNumber(result.value)
     state.result = formatted
@@ -302,12 +360,14 @@ function evaluateExpression() {
     state.error = result.error
     state.justEvaluated = false
   }
+
   updateDisplay()
 }
 
 app.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest('button')
   if (!target) return
+
   const action = target.dataset.action as KeyDef['action'] | undefined
   const input = target.dataset.input
   const type = target.dataset.type as InputType | undefined
@@ -328,8 +388,16 @@ app.addEventListener('click', (event) => {
     toggleSign()
     return
   }
-  if (action === 'toggle-mode') {
-    toggleMode()
+  if (action === 'toggle-angle') {
+    toggleAngleMode()
+    return
+  }
+  if (action === 'toggle-layout') {
+    toggleLayoutMode()
+    return
+  }
+  if (action === 'smart-paren') {
+    insertSmartParenthesis()
     return
   }
   if (input && type) {
