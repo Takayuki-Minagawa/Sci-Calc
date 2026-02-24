@@ -11,13 +11,14 @@ const sizes = {
   'android-chrome-512.png': 512
 }
 
-const gradientStops = [
-  { t: 0, color: [255, 179, 107] },
-  { t: 0.55, color: [255, 122, 89] },
-  { t: 1, color: [31, 138, 112] }
-]
-
-const lineColor = [31, 34, 30]
+// Background gradient: #3a2268 → #1c1040
+const bgColor1 = [58, 34, 104]
+const bgColor2 = [28, 16, 64]
+// Gold gradient: #f0b850 → #d08828
+const goldColor1 = [240, 184, 80]
+const goldColor2 = [208, 136, 40]
+// Panel overlay color (white at low alpha)
+const panelColor = [255, 255, 255]
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -33,82 +34,33 @@ function smoothstep(edge0, edge1, x) {
 }
 
 function mixColor(c1, c2, t) {
-  return [
-    lerp(c1[0], c2[0], t),
-    lerp(c1[1], c2[1], t),
-    lerp(c1[2], c2[2], t)
-  ]
+  return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)]
 }
 
-function gradientColor(x, y) {
-  const t = clamp((x + y) / 128, 0, 1)
-  if (t <= gradientStops[1].t) {
-    const tt = t / gradientStops[1].t
-    return mixColor(gradientStops[0].color, gradientStops[1].color, tt)
-  }
-  const tt = (t - gradientStops[1].t) / (gradientStops[2].t - gradientStops[1].t)
-  return mixColor(gradientStops[1].color, gradientStops[2].color, tt)
+// Signed distance function for a rounded rectangle
+// cx,cy = center; hw,hh = half-width/half-height; r = corner radius
+function roundedRectSDF(px, py, cx, cy, hw, hh, r) {
+  const dx = Math.max(Math.abs(px - cx) - (hw - r), 0)
+  const dy = Math.max(Math.abs(py - cy) - (hh - r), 0)
+  return Math.sqrt(dx * dx + dy * dy) - r
 }
 
-function dist(x1, y1, x2, y2) {
-  return Math.hypot(x1 - x2, y1 - y2)
+// Background gradient: linear from top-left toward bottom-right (direction 0.4, 1)
+function bgGradientAt(px, py) {
+  const dirLen = Math.sqrt(0.4 * 0.4 + 1)
+  const proj = (px * 0.4 + py) / (dirLen * 64 * dirLen)
+  return mixColor(bgColor1, bgColor2, clamp(proj, 0, 1))
 }
 
-function distToSegment(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1
-  const dy = y2 - y1
-  const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return dist(px, py, x1, y1)
-  const t = clamp(((px - x1) * dx + (py - y1) * dy) / lenSq, 0, 1)
-  const sx = x1 + t * dx
-  const sy = y1 + t * dy
-  return dist(px, py, sx, sy)
+// Gold gradient: vertical
+function goldGradientAt(py) {
+  return mixColor(goldColor1, goldColor2, clamp(py / 64, 0, 1))
 }
-
-function minDistanceToPolyline(px, py, points) {
-  let min = Infinity
-  for (let i = 0; i < points.length - 1; i++) {
-    const p1 = points[i]
-    const p2 = points[i + 1]
-    const d = distToSegment(px, py, p1.x, p1.y, p2.x, p2.y)
-    if (d < min) min = d
-  }
-  return min
-}
-
-function cubicPoint(t, p0, p1, p2, p3) {
-  const mt = 1 - t
-  const mt2 = mt * mt
-  const t2 = t * t
-  const x = p0.x * mt2 * mt + 3 * p1.x * mt2 * t + 3 * p2.x * mt * t2 + p3.x * t2 * t
-  const y = p0.y * mt2 * mt + 3 * p1.y * mt2 * t + 3 * p2.y * mt * t2 + p3.y * t2 * t
-  return { x, y }
-}
-
-function buildBezierPolyline(steps) {
-  const p0 = { x: 20, y: 38 }
-  const p1 = { x: 26.2, y: 42.6 }
-  const p2 = { x: 35.8, y: 42.6 }
-  const p3 = { x: 42, y: 38 }
-  const points = []
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps
-    points.push(cubicPoint(t, p0, p1, p2, p3))
-  }
-  return points
-}
-
-const bezierPoints = buildBezierPolyline(80)
-const vShapePoints = [
-  { x: 24, y: 26 },
-  { x: 32, y: 40 },
-  { x: 40, y: 26 }
-]
 
 function render(size) {
   const data = new Uint8Array(size * size * 4)
   const scale = 64 / size
-  const soft = Math.max(scale * 0.5, 0.5)
+  const soft = Math.max(scale * 0.6, 0.5)
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -124,33 +76,33 @@ function render(size) {
         if (alpha <= 0) return
         const a = clamp(alpha, 0, 1)
         const inv = 1 - a
-        pr = color[0] / 255 * a + pr * inv
-        pg = color[1] / 255 * a + pg * inv
-        pb = color[2] / 255 * a + pb * inv
+        pr = (color[0] / 255) * a + pr * inv
+        pg = (color[1] / 255) * a + pg * inv
+        pb = (color[2] / 255) * a + pb * inv
         pa = a + pa * inv
       }
 
-      const baseColor = gradientColor(px, py)
-      const distCenter = dist(px, py, 32, 32)
-      const fillAlpha = smoothstep(22 + soft, 22 - soft, distCenter) * 0.18
-      blend(baseColor, fillAlpha)
+      // 1) Background rounded rect: x=4 y=4 w=56 h=56 rx=14
+      //    center=(32,32) half=(28,28) r=14
+      const bgDist = roundedRectSDF(px, py, 32, 32, 28, 28, 14)
+      blend(bgGradientAt(px, py), smoothstep(soft, -soft, bgDist))
 
-      const ringDist = Math.abs(distCenter - 18)
-      const ringAlpha = smoothstep(1.5 + soft, 1.5 - soft, ringDist)
-      blend(baseColor, ringAlpha)
+      // 2) Screen rect: x=11 y=10 w=42 h=14 rx=4.5
+      //    center=(32,17) half=(21,7) r=4.5
+      const screenDist = roundedRectSDF(px, py, 32, 17, 21, 7, 4.5)
+      blend(panelColor, smoothstep(soft, -soft, screenDist) * 0.1)
 
-      const curveDist = minDistanceToPolyline(px, py, bezierPoints)
-      const curveAlpha = smoothstep(1.5 + soft, 1.5 - soft, curveDist)
-      blend(lineColor, curveAlpha)
+      // 3) Keypad rect: x=11 y=29 w=30 h=27 rx=4.5
+      //    center=(26,42.5) half=(15,13.5) r=4.5
+      const keypadDist = roundedRectSDF(px, py, 26, 42.5, 15, 13.5, 4.5)
+      blend(panelColor, smoothstep(soft, -soft, keypadDist) * 0.1)
 
-      const vShapeDist = minDistanceToPolyline(px, py, vShapePoints)
-      const vShapeAlpha = smoothstep(1.5 + soft, 1.5 - soft, vShapeDist)
-      blend(lineColor, vShapeAlpha)
+      // 4) Gold operator column: x=44 y=29 w=9 h=27 rx=4.5
+      //    center=(48.5,42.5) half=(4.5,13.5) r=4.5
+      const goldDist = roundedRectSDF(px, py, 48.5, 42.5, 4.5, 13.5, 4.5)
+      blend(goldGradientAt(py), smoothstep(soft, -soft, goldDist) * 0.75)
 
-      const dotDist = dist(px, py, 32, 26)
-      const dotAlpha = smoothstep(3.5 + soft, 3.5 - soft, dotDist)
-      blend(lineColor, dotAlpha)
-
+      // Write pixel
       let r = 0
       let g = 0
       let b = 0
@@ -170,12 +122,14 @@ function render(size) {
   return data
 }
 
+// --- PNG / ICO encoding (unchanged) ---
+
 const crcTable = (() => {
   const table = new Uint32Array(256)
   for (let n = 0; n < 256; n++) {
     let c = n
     for (let k = 0; k < 8; k++) {
-      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
     }
     table[n] = c >>> 0
   }
@@ -220,11 +174,7 @@ function writePng(filePath, width, height, rgba) {
   ihdr[12] = 0
 
   const idat = deflateSync(raw)
-  const chunks = [
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', idat),
-    pngChunk('IEND', Buffer.alloc(0))
-  ]
+  const chunks = [pngChunk('IHDR', ihdr), pngChunk('IDAT', idat), pngChunk('IEND', Buffer.alloc(0))]
   const png = Buffer.concat([signature, ...chunks])
   fs.writeFileSync(filePath, png)
   return png
@@ -255,6 +205,8 @@ function writeIco(filePath, entries) {
   const ico = Buffer.concat([header, dir, images])
   fs.writeFileSync(filePath, ico)
 }
+
+// --- Generate ---
 
 fs.mkdirSync(outDir, { recursive: true })
 
