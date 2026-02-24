@@ -4,7 +4,8 @@
   color-scheme: dark;
   --bg: #050506;
   --bg-glow: #201609;
-  --panel: #090909;
+  --panel-grad-start: #0a0a0a;
+  --panel-grad-end: #070707;
   --display: #050505;
   --line: rgba(255, 255, 255, 0.09);
   --text: #f2d7b3;
@@ -14,6 +15,45 @@
   --danger: #ff4b46;
   --key: #1b1714;
   --key-soft: #221d19;
+  --key-text: #e1c6f3;
+  --function-key-bg: #171311;
+  --expression-text: rgba(198, 167, 224, 0.8);
+  --toggle-bg: rgba(35, 28, 24, 0.95);
+  --toggle-line: rgba(255, 255, 255, 0.12);
+  --pill-bg: rgba(208, 154, 83, 0.16);
+  --pill-active-bg: rgba(200, 169, 221, 0.24);
+  --pill-active-text: #e6ccf4;
+  --equals-text: #fff1df;
+  --focus-ring: rgba(208, 154, 83, 0.48);
+  --shadow: 0 28px 54px -34px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f1e8;
+  --bg-glow: #fde6c7;
+  --panel-grad-start: #fffdfa;
+  --panel-grad-end: #f2ebde;
+  --display: #fffdf8;
+  --line: rgba(66, 52, 38, 0.16);
+  --text: #603d1a;
+  --text-muted: #6d5a86;
+  --amber: #b67733;
+  --amber-strong: #9f6325;
+  --danger: #cd453f;
+  --key: #efe5d8;
+  --key-soft: #e4d9cb;
+  --key-text: #7f5d96;
+  --function-key-bg: #eadfce;
+  --expression-text: rgba(111, 90, 134, 0.86);
+  --toggle-bg: rgba(248, 240, 227, 0.95);
+  --toggle-line: rgba(66, 52, 38, 0.2);
+  --pill-bg: rgba(182, 119, 51, 0.16);
+  --pill-active-bg: rgba(109, 90, 134, 0.2);
+  --pill-active-text: #5f4a7b;
+  --equals-text: #fff7eb;
+  --focus-ring: rgba(182, 119, 51, 0.45);
+  --shadow: 0 22px 42px -28px rgba(77, 60, 39, 0.45);
 }
 
 * {
@@ -34,13 +74,13 @@ body {
 
 .calculator {
   width: min(430px, 100%);
-  background: linear-gradient(180deg, #0a0a0a 0%, #070707 100%);
+  background: linear-gradient(180deg, var(--panel-grad-start) 0%, var(--panel-grad-end) 100%);
   border: 1px solid var(--line);
   border-radius: 32px;
   padding: 18px;
   display: grid;
   gap: 16px;
-  box-shadow: 0 28px 54px -34px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--shadow);
   transition: width 0.3s ease, padding 0.3s ease;
 }
 
@@ -60,9 +100,9 @@ body {
 }
 
 .toggle {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--toggle-line);
   border-radius: 999px;
-  background: rgba(35, 28, 24, 0.95);
+  background: var(--toggle-bg);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
@@ -72,6 +112,11 @@ body {
   padding: 8px 14px;
   font: inherit;
   cursor: pointer;
+}
+
+.toggle:disabled {
+  opacity: 0.58;
+  cursor: default;
 }
 
 .mode-toggle {
@@ -91,16 +136,16 @@ body {
 .toggle-pill {
   border-radius: 999px;
   padding: 3px 10px;
-  background: rgba(208, 154, 83, 0.16);
+  background: var(--pill-bg);
   color: var(--text);
   font-size: 0.74rem;
   letter-spacing: 0.06em;
   font-weight: 700;
 }
 
-.layout-toggle.is-active .toggle-pill {
-  background: rgba(200, 169, 221, 0.24);
-  color: #e6ccf4;
+.toggle.is-active .toggle-pill {
+  background: var(--pill-active-bg);
+  color: var(--pill-active-text);
 }
 
 .display {
@@ -119,7 +164,7 @@ body {
   font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 1rem;
   line-height: 1.35;
-  color: rgba(198, 167, 224, 0.8);
+  color: var(--expression-text);
   min-height: 1.4em;
   word-break: break-all;
 }
@@ -133,7 +178,7 @@ body {
 
 .error {
   min-height: 1.2em;
-  color: #ff7c78;
+  color: var(--danger);
   font-size: 0.9rem;
 }
 
@@ -164,7 +209,7 @@ body {
   border-radius: 999px;
   min-height: 70px;
   background: var(--key);
-  color: #e1c6f3;
+  color: var(--key-text);
   font: inherit;
   font-size: 1.45rem;
   font-weight: 700;
@@ -197,7 +242,7 @@ body {
 
 .key.equals {
   background: var(--amber-strong);
-  color: #fff1df;
+  color: var(--equals-text);
   font-size: 2.1rem;
 }
 
@@ -205,7 +250,7 @@ body {
   min-height: 56px;
   border-radius: 20px;
   font-size: 1.22rem;
-  background: #171311;
+  background: var(--function-key-bg);
   color: var(--text-muted);
 }
 
@@ -214,7 +259,7 @@ body {
 }
 
 button:focus-visible {
-  outline: 3px solid rgba(208, 154, 83, 0.48);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
 }
 

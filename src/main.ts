@@ -2,6 +2,7 @@ import './style.css'
 import { evaluate, type Mode } from './engine/evaluate'
 
 type LayoutMode = 'basic' | 'scientific'
+type ThemeMode = 'dark' | 'light'
 
 type InputType =
   | 'digit'
@@ -17,7 +18,16 @@ type KeyDef = {
   label: string
   aria: string
   input?: string
-  action?: 'clear' | 'backspace' | 'evaluate' | 'toggle-sign' | 'toggle-angle' | 'toggle-layout' | 'smart-paren'
+  action?:
+    | 'clear'
+    | 'backspace'
+    | 'evaluate'
+    | 'toggle-sign'
+    | 'toggle-angle'
+    | 'toggle-layout'
+    | 'toggle-theme'
+    | 'toggle-orientation'
+    | 'smart-paren'
   type?: InputType
   className?: string
 }
@@ -27,9 +37,38 @@ type State = {
   result: string
   mode: Mode
   layout: LayoutMode
+  theme: ThemeMode
+  landscapeLock: boolean
+  orientationAvailable: boolean
   ans: number
   error: string
   justEvaluated: boolean
+}
+
+const THEME_STORAGE_KEY = 'sci-calc-theme'
+
+function supportsOrientationLockApi(): boolean {
+  return typeof screen.orientation?.lock === 'function'
+}
+
+function isMobileLikeDevice(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 920px)').matches
+}
+
+function canUseOrientationControl(): boolean {
+  return supportsOrientationLockApi() && isMobileLikeDevice()
+}
+
+function getInitialTheme(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'dark' || saved === 'light') {
+      return saved
+    }
+  } catch {
+    // Ignore storage availability errors and fallback to system preference.
+  }
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
 }
 
 const state: State = {
@@ -37,6 +76,9 @@ const state: State = {
   result: '0',
   mode: 'DEG',
   layout: 'basic',
+  theme: getInitialTheme(),
+  landscapeLock: false,
+  orientationAvailable: canUseOrientationControl(),
   ans: 0,
   error: '',
   justEvaluated: false
@@ -66,6 +108,22 @@ app.innerHTML = `
           <span class="toggle-pill layout-pill">OFF</span>
         </button>
       </div>
+      <div class="status-row preference-row">
+        <button class="toggle theme-toggle" type="button" data-action="toggle-theme" aria-label="テーマ切り替え">
+          <span class="toggle-label">THEME</span>
+          <span class="toggle-pill theme-pill">${state.theme.toUpperCase()}</span>
+        </button>
+        <button
+          class="toggle orientation-toggle"
+          type="button"
+          data-action="toggle-orientation"
+          aria-label="横向き固定切り替え"
+          aria-pressed="false"
+        >
+          <span class="toggle-label">LANDSCAPE</span>
+          <span class="toggle-pill orientation-pill">縦</span>
+        </button>
+      </div>
 
       <div class="display" aria-live="polite">
         <div class="expression" id="expression"></div>
@@ -91,6 +149,10 @@ const modeToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle
 const modePillEl = modeToggleBtn.querySelector<HTMLSpanElement>('.mode-pill')!
 const layoutToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-layout"]')!
 const layoutPillEl = layoutToggleBtn.querySelector<HTMLSpanElement>('.layout-pill')!
+const themeToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-theme"]')!
+const themePillEl = themeToggleBtn.querySelector<HTMLSpanElement>('.theme-pill')!
+const orientationToggleBtn = app.querySelector<HTMLButtonElement>('[data-action="toggle-orientation"]')!
+const orientationPillEl = orientationToggleBtn.querySelector<HTMLSpanElement>('.orientation-pill')!
 
 const functionGrid = app.querySelector<HTMLDivElement>('#functionGrid')!
 const mainGrid = app.querySelector<HTMLDivElement>('#mainGrid')!
@@ -192,6 +254,7 @@ function trimNumberString(value: string): string {
 }
 
 function updateDisplay() {
+  document.documentElement.dataset.theme = state.theme
   expressionEl.textContent = formatExpression(state.expression)
 
   if (state.error) {
@@ -210,9 +273,19 @@ function updateDisplay() {
   layoutToggleBtn.setAttribute('aria-pressed', scientificEnabled ? 'true' : 'false')
   calculatorEl.dataset.layout = state.layout
 
+  themePillEl.textContent = state.theme.toUpperCase()
+  themeToggleBtn.classList.toggle('is-active', state.theme === 'light')
+
+  const orientationLabel = state.landscapeLock ? '横' : '縦'
+  orientationPillEl.textContent = orientationLabel
+  orientationToggleBtn.classList.toggle('is-active', state.landscapeLock)
+  orientationToggleBtn.setAttribute('aria-pressed', state.landscapeLock ? 'true' : 'false')
+  orientationToggleBtn.disabled = !state.orientationAvailable
+  orientationToggleBtn.setAttribute('aria-disabled', state.orientationAvailable ? 'false' : 'true')
+
   modeHintEl.textContent = scientificEnabled
-    ? `関数モード | 角度: ${state.mode}`
-    : `通常モード | 角度: ${state.mode}`
+    ? `関数モード | 角度: ${state.mode} | 画面: ${orientationLabel}`
+    : `通常モード | 角度: ${state.mode} | 画面: ${orientationLabel}`
 }
 
 function clearAll() {
@@ -241,6 +314,86 @@ function toggleAngleMode() {
 
 function toggleLayoutMode() {
   state.layout = state.layout === 'basic' ? 'scientific' : 'basic'
+  updateDisplay()
+}
+
+function toggleThemeMode() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark'
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, state.theme)
+  } catch {
+    // Ignore storage availability errors.
+  }
+  updateDisplay()
+}
+
+async function lockLandscape(): Promise<boolean> {
+  if (!state.orientationAvailable) {
+    return false
+  }
+
+  try {
+    await screen.orientation.lock('landscape')
+    return true
+  } catch {
+    if (document.fullscreenElement || typeof document.documentElement.requestFullscreen !== 'function') {
+      return false
+    }
+    try {
+      await document.documentElement.requestFullscreen()
+      await screen.orientation.lock('landscape')
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
+async function unlockLandscape() {
+  try {
+    if (typeof screen.orientation?.unlock === 'function') {
+      screen.orientation.unlock()
+    }
+  } catch {
+    // Ignore unlock errors.
+  }
+  if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // Ignore fullscreen exit errors.
+    }
+  }
+}
+
+async function toggleOrientationLockMode() {
+  if (!state.orientationAvailable) {
+    state.landscapeLock = false
+    updateDisplay()
+    return
+  }
+
+  if (state.landscapeLock) {
+    await unlockLandscape()
+    state.landscapeLock = false
+    updateDisplay()
+    return
+  }
+
+  const locked = await lockLandscape()
+  state.landscapeLock = locked
+  updateDisplay()
+}
+
+async function initializeOrientationMode() {
+  if (!state.orientationAvailable) {
+    state.landscapeLock = false
+    updateDisplay()
+    return
+  }
+
+  const locked = await lockLandscape()
+  state.landscapeLock = locked
   updateDisplay()
 }
 
@@ -396,6 +549,14 @@ app.addEventListener('click', (event) => {
     toggleLayoutMode()
     return
   }
+  if (action === 'toggle-theme') {
+    toggleThemeMode()
+    return
+  }
+  if (action === 'toggle-orientation') {
+    void toggleOrientationLockMode()
+    return
+  }
   if (action === 'smart-paren') {
     insertSmartParenthesis()
     return
@@ -438,3 +599,4 @@ document.addEventListener('keydown', (event) => {
 })
 
 updateDisplay()
+void initializeOrientationMode()
