@@ -200,6 +200,10 @@ body {
   word-break: break-all;
 }
 
+.expression .auto-paren {
+  opacity: 0.35;
+}
+
 .result {
   font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: clamp(2.2rem, 8.2vw, 3.4rem);

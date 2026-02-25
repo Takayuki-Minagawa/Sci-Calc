@@ -255,7 +255,13 @@ function trimNumberString(value: string): string {
 
 function updateDisplay() {
   document.documentElement.dataset.theme = state.theme
-  expressionEl.textContent = formatExpression(state.expression)
+  const formatted = formatExpression(state.expression)
+  const openCount = countOpenParentheses(state.expression)
+  if (openCount > 0) {
+    expressionEl.innerHTML = escapeHtml(formatted) + '<span class="auto-paren">' + ')'.repeat(openCount) + '</span>'
+  } else {
+    expressionEl.textContent = formatted
+  }
 
   if (state.error) {
     resultEl.textContent = 'Error'
@@ -427,6 +433,10 @@ function toggleSign() {
   updateDisplay()
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 function endsWithValue(expr: string): boolean {
   const trimmed = expr.trimEnd()
   if (!trimmed) return false
@@ -447,6 +457,8 @@ function handleInput(input: string, type: InputType) {
   if (state.justEvaluated) {
     if (type === 'operator') {
       state.expression = `ans${input}`
+    } else if (type === 'function') {
+      state.expression = `${input}ans)`
     } else {
       state.expression = input
     }
